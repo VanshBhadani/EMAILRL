@@ -1,17 +1,21 @@
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+	PYTHONUNBUFFERED=1 \
+	PIP_NO_CACHE_DIR=1 \
+	PATH=/home/user/.local/bin:$PATH
+
+RUN useradd -m -u 1000 user
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir uv
-
-COPY requirements.txt ./requirements.txt
+COPY --chown=user requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY --chown=user . .
 
-EXPOSE 8000
+USER user
 
-CMD ["uv", "run", "server"]
+EXPOSE 7860
+
+CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "7860"]

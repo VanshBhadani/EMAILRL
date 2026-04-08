@@ -1,7 +1,7 @@
 ---
 title: email_triage_env
 sdk: docker
-app_port: 8000
+app_port: 7860
 ---
 
 # email_triage_env
@@ -168,13 +168,13 @@ uv run server
 ```
 
 Server starts at:
-- http://localhost:8000
+- http://localhost:7860
 
 ### Quick Endpoint Checks
 
 ```bash
-curl http://localhost:8000/health
-curl -X POST http://localhost:8000/reset -H "Content-Type: application/json" -d "{\"task_id\":\"task_1_easy_spam_detection\"}"
+curl http://localhost:7860/health
+curl -X POST http://localhost:7860/reset -H "Content-Type: application/json" -d "{\"task_id\":\"task_1_easy_spam_detection\"}"
 ```
 
 ## Docker
@@ -188,7 +188,7 @@ docker build -t email-triage-env:latest .
 Run:
 
 ```bash
-docker run --rm -p 8000:8000 email-triage-env:latest
+docker run --rm -p 7860:7860 email-triage-env:latest
 ```
 
 Container command uses:
@@ -199,7 +199,7 @@ Container command uses:
 This repository is docker-ready for HF Spaces:
 - Dockerfile included
 - OpenEnv manifest included
-- App listens on port 8000
+- App listens on port 7860
 - POST /reset is available through OpenEnv routes
 
 ## Baseline Inference Script
@@ -213,7 +213,7 @@ Reads required environment variables:
 - HF_TOKEN
 
 Optional:
-- ENV_BASE_URL (defaults to http://localhost:8000)
+- ENV_BASE_URL (defaults to http://localhost:7860)
 
 Run:
 
@@ -221,7 +221,7 @@ Run:
 $env:API_BASE_URL = "https://your-openai-compatible-endpoint/v1"
 $env:MODEL_NAME = "your-model"
 $env:HF_TOKEN = "your-token"
-python inference.py --env-url http://localhost:8000
+python inference.py --env-url http://localhost:7860
 ```
 
 ## Required Logging Format
@@ -229,7 +229,7 @@ python inference.py --env-url http://localhost:8000
 inference.py emits strict lines:
 
 ```text
-[START] task=task_1_easy_spam_detection env=http://localhost:8000 model=your-model
+[START] task=task_1_easy_spam_detection env=http://localhost:7860 model=your-model
 [STEP] step=1 action={"priority":"low","category":"spam","action":"ignore"} reward=1.00 done=true error=null
 [END] success=true steps=1 score=1.00 rewards=[1.00]
 ```

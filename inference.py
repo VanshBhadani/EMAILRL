@@ -219,7 +219,7 @@ def main() -> int:
     parser.add_argument("--max-steps", type=int, default=8, help="Maximum rollout steps")
     parser.add_argument(
         "--env-url",
-        default=os.getenv("ENV_BASE_URL", "http://localhost:8000"),
+        default=os.getenv("ENV_BASE_URL", "http://localhost:7860"),
         help="OpenEnv server base URL",
     )
     args = parser.parse_args()
