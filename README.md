@@ -203,6 +203,8 @@ This repository is docker-ready for HF Spaces:
 - OpenEnv manifest included
 - App listens on port 7860
 - POST /reset is available through OpenEnv routes
+- Root `/` serves an interactive triage demo UI for live stepping
+- JSON metadata is available at `/api`
 
 ## Baseline Inference Script
 
