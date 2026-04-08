@@ -211,15 +211,20 @@ Reads required environment variables:
 - API_BASE_URL
 - MODEL_NAME
 - HF_TOKEN
+- LOCAL_IMAGE_NAME (required only when using from_docker_image() workflow)
 
 Optional:
 - ENV_BASE_URL (defaults to http://localhost:7860)
 
+Defaults are intentionally set only for:
+- API_BASE_URL
+- MODEL_NAME
+
 Run:
 
 ```bash
-$env:API_BASE_URL = "https://your-openai-compatible-endpoint/v1"
-$env:MODEL_NAME = "your-model"
+$env:API_BASE_URL = "https://router.huggingface.co/v1"
+$env:MODEL_NAME = "Qwen/Qwen2.5-72B-Instruct"
 $env:HF_TOKEN = "your-token"
 python inference.py --env-url http://localhost:7860
 ```
@@ -229,14 +234,16 @@ python inference.py --env-url http://localhost:7860
 inference.py emits strict lines:
 
 ```text
-[START] task=task_1_easy_spam_detection env=http://localhost:7860 model=your-model
+[START] task=task_1_easy_spam_detection env=email_triage_env model=your-model
 [STEP] step=1 action={"priority":"low","category":"spam","action":"ignore"} reward=1.00 done=true error=null
-[END] success=true steps=1 score=1.00 rewards=[1.00]
+[END] success=true steps=1 score=1.00 rewards=1.00
 ```
 
 Formatting guarantees:
 - reward has 2 decimals
+- rewards are comma-separated values with 2 decimals each
 - done is true/false lowercase
+- success is true/false lowercase
 - error is null when no error
 - score is clipped to [0, 1]
 

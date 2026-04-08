@@ -5,7 +5,7 @@ description: Deterministic, production-style email triage environment with rewar
 type: space
 runtime: fastapi
 app: server.app:app
-port: 8000
+port: 7860
 
 tasks:
   - id: task_1_easy_spam_detection

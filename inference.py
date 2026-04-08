@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import requests
 from openai import OpenAI
@@ -18,6 +18,11 @@ ALLOWED_PRIORITY = {"high", "medium", "low"}
 ALLOWED_CATEGORY = {"work", "spam", "personal", "finance", "promotion"}
 ALLOWED_ACTION = {"reply", "ignore", "forward", "escalate"}
 
+API_BASE_URL_DEFAULT = "https://router.huggingface.co/v1"
+MODEL_NAME_DEFAULT = "Qwen/Qwen2.5-72B-Instruct"
+BENCHMARK_NAME = os.getenv("BENCHMARK_NAME", "email_triage_env")
+SUCCESS_SCORE_THRESHOLD = float(os.getenv("SUCCESS_SCORE_THRESHOLD", "0.7"))
+
 
 def _bool_str(value: bool) -> str:
     return "true" if value else "false"
@@ -25,6 +30,10 @@ def _bool_str(value: bool) -> str:
 
 def _clip01(value: float) -> float:
     return max(0.0, min(1.0, value))
+
+
+def _single_line(value: str) -> str:
+    return " ".join(str(value).splitlines()).strip()
 
 
 def _safe_default_action() -> Dict[str, str]:
@@ -119,6 +128,27 @@ def decide_action(
     return _normalize_action(candidate)
 
 
+def log_start(task: str, env: str, model: str) -> None:
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+
+def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
+    error_val = "null" if not error else _single_line(error)
+    print(
+        f"[STEP] step={step} action={_single_line(action)} reward={reward:.2f} "
+        f"done={_bool_str(done)} error={error_val}",
+        flush=True,
+    )
+
+
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(
+        f"[END] success={_bool_str(success)} steps={steps} score={_clip01(score):.2f} rewards={rewards_str}",
+        flush=True,
+    )
+
+
 def run_episode(
     env_url: str,
     task_id: str,
@@ -126,7 +156,7 @@ def run_episode(
     model_name: str,
     max_steps: int,
 ) -> None:
-    print(f"[START] task={task_id} env={env_url} model={model_name}")
+    log_start(task=task_id, env=BENCHMARK_NAME, model=model_name)
 
     rewards: List[float] = []
     step_idx = 0
@@ -134,7 +164,7 @@ def run_episode(
     success = False
     score = 0.0
     observation: Dict[str, Any] = {}
-    terminal_error: str | None = None
+    terminal_error: Optional[str] = None
 
     try:
         reset_response = requests.post(
@@ -147,18 +177,15 @@ def run_episode(
         observation = dict(reset_payload.get("observation", {}))
     except Exception as exc:
         terminal_error = f"reset_failed:{type(exc).__name__}"
-        print(
-            "[STEP] step=0 action={} reward=0.00 done=true error="
-            + terminal_error.replace(" ", "_")
-        )
-        print("[END] success=false steps=0 score=0.00 rewards=[]")
+        log_step(step=0, action="null", reward=0.0, done=True, error=terminal_error)
+        log_end(success=False, steps=0, score=0.0, rewards=[])
         return
 
     while not done and step_idx < max_steps:
         step_idx += 1
 
         action = _safe_default_action()
-        error_text: str | None = None
+        error_text: Optional[str] = None
         reward = 0.0
 
         try:
@@ -176,6 +203,13 @@ def run_episode(
             observation = dict(step_payload.get("observation", {}))
             rewards.append(reward)
 
+            error_text = (
+                step_payload.get("last_action_error")
+                or ((observation.get("metadata") or {}).get("info") or {}).get("last_action_error")
+            )
+            if error_text is not None:
+                error_text = str(error_text)
+
             info = (observation.get("metadata") or {}).get("info") or {}
             if "grader_score" in info:
                 score = _clip01(float(info.get("grader_score", 0.0)))
@@ -186,13 +220,7 @@ def run_episode(
             rewards.append(reward)
 
         action_str = json.dumps(action, ensure_ascii=True, separators=(",", ":"))
-        reward_str = f"{reward:.2f}"
-        error_str = "null" if error_text is None else error_text.replace(" ", "_")
-
-        print(
-            f"[STEP] step={step_idx} action={action_str} reward={reward_str} "
-            f"done={_bool_str(done)} error={error_str}"
-        )
+        log_step(step=step_idx, action=action_str, reward=reward, done=done, error=error_text)
 
     if score <= 0.0:
         try:
@@ -204,13 +232,9 @@ def run_episode(
             pass
 
     if terminal_error is None and done:
-        success = score >= 0.7
+        success = score >= SUCCESS_SCORE_THRESHOLD
 
-    rewards_str = "[" + ",".join(f"{r:.2f}" for r in rewards) + "]"
-    print(
-        f"[END] success={_bool_str(success)} steps={step_idx} "
-        f"score={_clip01(score):.2f} rewards={rewards_str}"
-    )
+    log_end(success=success, steps=step_idx, score=score, rewards=rewards)
 
 
 def main() -> int:
@@ -224,9 +248,20 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    api_base_url = os.getenv("API_BASE_URL", "").strip()
-    model_name = os.getenv("MODEL_NAME", "").strip()
-    hf_token = os.getenv("HF_TOKEN", "").strip()
+    # MANDATORY variables:
+    # - API_BASE_URL
+    # - MODEL_NAME
+    # - HF_TOKEN
+    # - LOCAL_IMAGE_NAME (required when using from_docker_image workflow)
+    api_base_url = (os.getenv("API_BASE_URL") or API_BASE_URL_DEFAULT).strip()
+    model_name = (os.getenv("MODEL_NAME") or MODEL_NAME_DEFAULT).strip()
+    hf_token = (os.getenv("HF_TOKEN") or os.getenv("API_KEY") or "").strip()
+    _local_image_name = (os.getenv("LOCAL_IMAGE_NAME") or os.getenv("IMAGE_NAME") or "").strip()
+
+    if _local_image_name:
+        # The current baseline runner uses the HTTP OpenEnv endpoint (--env-url).
+        # LOCAL_IMAGE_NAME is accepted for compatibility with from_docker_image workflows.
+        pass
 
     if not api_base_url or not model_name or not hf_token:
         raise RuntimeError("Missing required env vars: API_BASE_URL, MODEL_NAME, HF_TOKEN")
