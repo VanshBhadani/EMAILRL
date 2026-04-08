@@ -29,6 +29,23 @@ app = create_app(
 )
 
 
+@app.get("/", include_in_schema=False)
+def root() -> dict[str, object]:
+    return {
+        "name": "email_triage_env",
+        "status": "running",
+        "message": "OpenEnv server is live.",
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "reset": "POST /reset",
+            "step": "POST /step",
+            "state": "GET /state",
+            "schema": "GET /schema",
+        },
+    }
+
+
 def main(host: str = "0.0.0.0", port: int | None = None) -> None:
     import uvicorn
 
