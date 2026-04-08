@@ -112,6 +112,8 @@ Reward is dense and non-binary. Each step combines:
 - Drift penalty when quality degrades
 - Terminal bonus/penalty on solve/fail termination
 
+Final per-step reward is clipped to [0.0, 1.0] for benchmark compliance.
+
 Episodes terminate on:
 - Full triage correctness
 - Step limit reached (5 to 10, task-configured)

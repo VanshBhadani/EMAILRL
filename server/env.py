@@ -139,7 +139,7 @@ class EmailTriageEnvCore:
             + drift_penalty
             + terminal_bonus
         )
-        reward = round(_clip(reward, -1.0, 1.0), 4)
+        reward = round(_clip(reward, 0.0, 1.0), 4)
 
         self._state.cumulative_reward += reward
         self._state.best_weighted_score = max(self._state.best_weighted_score, grading.score)
