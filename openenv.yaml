@@ -1,0 +1,53 @@
+spec_version: 1
+name: email_triage_env
+version: "1.0.0"
+description: Deterministic, production-style email triage environment with reward shaping and safety-aware grading.
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+
+tasks:
+  - id: task_1_easy_spam_detection
+    name: Easy Spam Detection
+    difficulty: easy
+    objective: Detect obvious spam and choose safe ignore behavior.
+  - id: task_2_medium_work_prioritization
+    name: Medium Work Prioritization
+    difficulty: medium
+    objective: Infer urgency and choose correct work triage action.
+  - id: task_3_hard_context_reasoning
+    name: Hard Context and Reasoning
+    difficulty: hard
+    objective: Use thread context for phishing detection and escalation handling.
+
+action_space:
+  type: object
+  fields:
+    priority: [high, medium, low]
+    category: [work, spam, personal, finance, promotion]
+    action: [reply, ignore, forward, escalate]
+
+observation_space:
+  type: object
+  fields:
+    email_id: string
+    subject: string
+    sender: string
+    email_body: string
+    timestamp: string
+    thread_history: array
+    attachments: array
+
+metadata:
+  benchmark: OpenEnv Email Triage Challenge
+  deterministic: true
+  reproducible: true
+  max_steps_default: 6
+  max_steps_range: [5, 10]
+  supports_seed: true
+  hf_spaces_compatible: true
+  endpoints:
+    reset: POST /reset
+    step: POST /step
+    state: GET /state
